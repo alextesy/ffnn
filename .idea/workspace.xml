@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="758054db-f665-47d7-bb62-8b49ef96e3dc" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -21,13 +20,13 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="Python Console" value="298" />
-          <entry key="py" value="1230" />
+          <entry key="Python Console" value="401" />
+          <entry key="py" value="2722" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="1528" />
+          <entry key="Python" value="3123" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -47,17 +46,21 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="522">
-              <caret line="113" column="84" lean-forward="true" selection-start-line="101" selection-end-line="113" selection-end-column="84" />
+            <state relative-caret-position="426">
+              <caret line="248" lean-forward="true" selection-start-line="248" selection-end-line="248" />
               <folding>
-                <marker date="1551862019823" expanded="true" signature="246:247" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="605:756" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="1303:1336" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="1550:1555" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="2119:2124" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="2605:3346" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="3929:4097" ph="..." />
-                <marker date="1551862019823" expanded="true" signature="4450:4482" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="243:246" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="603:762" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="1311:1346" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="1562:1569" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="2085:2092" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="2575:3321" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="3906:4088" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="4443:4479" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="4920:4921" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="5375:5380" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="5584:5585" ph="..." />
+                <marker date="1551873028844" expanded="true" signature="7235:7240" ph="..." />
               </folding>
             </state>
           </provider>
@@ -87,6 +90,11 @@
         <option value="Python Script" />
       </list>
     </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>act</find>
+    </findStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -172,7 +180,7 @@
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="right" id="Remote Host" />
-      <window_info anchor="right" id="SciView" visible="true" weight="0.1380597" />
+      <window_info anchor="right" id="SciView" visible="true" weight="0.20149253" />
       <window_info anchor="right" id="Database" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -184,6 +192,17 @@
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>188</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$USER_HOME$/AppData/Local/Continuum/anaconda3/Lib/site-packages/numpy/random/__init__.py">
@@ -200,17 +219,21 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="522">
-          <caret line="113" column="84" lean-forward="true" selection-start-line="101" selection-end-line="113" selection-end-column="84" />
+        <state relative-caret-position="426">
+          <caret line="248" lean-forward="true" selection-start-line="248" selection-end-line="248" />
           <folding>
-            <marker date="1551862019823" expanded="true" signature="246:247" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="605:756" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="1303:1336" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="1550:1555" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="2119:2124" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="2605:3346" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="3929:4097" ph="..." />
-            <marker date="1551862019823" expanded="true" signature="4450:4482" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="243:246" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="603:762" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="1311:1346" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="1562:1569" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="2085:2092" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="2575:3321" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="3906:4088" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="4443:4479" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="4920:4921" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="5375:5380" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="5584:5585" ph="..." />
+            <marker date="1551873028844" expanded="true" signature="7235:7240" ph="..." />
           </folding>
         </state>
       </provider>

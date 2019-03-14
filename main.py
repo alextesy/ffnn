@@ -8,7 +8,7 @@ EPSILON = 0.01
 def initialize_parameters(layer_dims):
     return_dict = {}
     for i, (dim, ndim) in enumerate(zip(layer_dims, layer_dims[1:])):
-        return_dict[i] = (np.random.randn(ndim, dim), np.zeros(ndim))
+        return_dict[i] = (np.random.randn(ndim, dim), np.zeros((ndim,1)))
 
     return return_dict
 
@@ -26,8 +26,8 @@ def linear_forward(A, W, b):
         'W': W,
         'b': b
     }
-    transposed_W = np.transpose(W)
-    Z = np.dot(A,transposed_W) + b
+    #transposed_W = np.transpose(W)
+    Z = np.dot(W,A) + b
     return Z, linear_cache
 
 
@@ -145,7 +145,7 @@ def compute_cost(AL, Y):
     loss = 0
     for i in range(len(AL)):
         y = Y[i]
-        al = AL[i]
+        al = AL[:,i]
         loss += np.dot(y , np.log(al)) + np.dot((1 - y) , np.log(1 - al))
     return loss * (-1 / m)
 
@@ -180,7 +180,7 @@ def Linear_backward(dZ, cache):
     m = len(b)
     dW = 1 / m * np.dot(dZ, np.transpose(A_prev))
     db = 1 / m * np.sum(dZ)
-    dA_prev = np.transpose(W) * dZ
+    dA_prev = np.dot(np.transpose(W), dZ)
 
     return dA_prev, dW, db
 
@@ -212,6 +212,7 @@ def sigmoid_backward(dA, activation_cache):
 
 def L_model_backward(AL, Y, caches):
     grads = {}
+    Y = Y.reshape(AL.shape)
     dAL = -(np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
     cache = caches[-1]
     num_of_layers = len(caches) - 1
@@ -219,8 +220,9 @@ def L_model_backward(AL, Y, caches):
     grads['dA' + str(num_of_layers)] = dA_prev
     grads['dW' + str(num_of_layers)] = dW
     grads['db' + str(num_of_layers)] = db
-    for i, cache in enumerate(reversed(caches[:-1])):
-        i = num_of_layers - i
+    caches = reversed(caches[:-1])
+    for i, cache in enumerate(caches):
+        i = num_of_layers - i - 1
         dA_prev, dW, db = linear_activation_backward(dAL, cache, 'relu')
         grads['dA' + str(i)] = dA_prev
         grads['dW' + str(i)] = dW
@@ -244,7 +246,7 @@ def L_layer_model(X, Y, layers_dims, learning_rate, num_iterations, batch_size):
     costs = []
     parmeters = initialize_parameters(layers_dims)
     for iter in range(num_iterations):
-        X = [X[i:i + batch_size] for i in range(0, len(X), batch_size)]
+        X = [X[:, i:i + batch_size] for i in range(0, X.shape[1], batch_size)]
         Y = [Y[i:i + batch_size] for i in range(0, len(Y), batch_size)]
 
         for x, y in zip(X, Y):
@@ -274,10 +276,10 @@ def Predict(X, Y, parameters):
 
 def _get_date():
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    return x_train.reshape(x_train.shape[0], -1),\
-           y_train.reshape(y_train.shape[0], -1),\
-           x_test.reshape(x_test.shape[0], -1),\
-           y_test.reshape(y_test.shape[0], -1)
+    return x_train.reshape(-1, x_train.shape[0]),\
+           y_train.reshape(-1, y_train.shape[0]),\
+           x_test.reshape(-1, x_test.shape[0]),\
+           y_test.reshape(-1, y_test.shape[0])
 
 def pre_preprocess(y):
     y = y.tolist()
@@ -287,7 +289,7 @@ def pre_preprocess(y):
 if __name__ == "__main__":
     layer_dims = [784, 20, 7, 5, 10]
     learning_rate = 0.009
-    batch_size = 1
+    batch_size = 30
     iterations = 2000
     x_train, y_train, x_test, y_test = _get_date()
     y_train = pre_preprocess(y_train)

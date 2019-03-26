@@ -1,5 +1,5 @@
 import sys
-
+from test import model_DL
 import numpy as np
 import pandas as pd
 from keras.datasets import mnist
@@ -10,7 +10,7 @@ EPSILON = 0.01
 def initialize_parameters(layer_dims):
     return_dict = {}
     for i, (dim, ndim) in enumerate(zip(layer_dims, layer_dims[1:])):
-        return_dict['W'+str(i)] = np.random.randn(ndim, dim)
+        return_dict['W'+str(i)] = np.random.randn(ndim, dim)/200
         return_dict['b'+str(i)] = np.zeros((ndim, 1))
     return return_dict
 
@@ -34,7 +34,6 @@ def linear_forward(A, W, b):
 
 
 def softmax(z):
-    """Compute softmax values for each sets of scores in x."""
     """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(z - np.max(z))
     return e_x / e_x.sum(axis=0), z  # only difference
@@ -77,20 +76,16 @@ def L_model_forward(X, parameters, use_batchnorm, dropout=None):
     return AL, caches
 
 def compute_cost(AL, Y):
-    m = Y.shape[0]
+    m = Y.shape[1]
+    cost = (-1 / m) * np.sum(Y * np.log(AL))
+    cost = np.squeeze(cost)  # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
+    return cost
+    '''
+    m = Y.shape[1]
     cost = 0
     for i in range(m):
-        cost += np.dot(Y[0], np.log(AL[:, 0]))
-    return -1 / m * cost
-    ''' 
-    Y = Y.T
-    m = AL.shape[1]
-    c = Y.shape[1]
-    # loss = 0
-    cost = -1 / m *(np.dot(Y, np.log(AL.T)) + np.dot(1 - Y, np.log(1 - AL).T))
-    #cost *= (-1 / m)
-    # cost = np.squeeze(cost)'''
-    return cost
+        cost += np.dot(Y[:, i], np.log(AL[:, i]))
+    return -1 / m * cost'''
 
 
 def apply_batchnorm(A):
@@ -102,8 +97,8 @@ def Linear_backward(dZ, cache):
     W = cache['W']
     b = cache['b']
     m = A_prev.shape[1]
-    dW = 1 / m * np.dot(dZ, np.transpose(A_prev))
-    db = 1 / m * np.sum(dZ, axis=1, keepdims=True)
+    dW = (1. / m) * np.dot(dZ, np.transpose(A_prev))
+    db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
     dA_prev = np.dot(np.transpose(W), dZ)
 
     return dA_prev, dW, db
@@ -111,7 +106,7 @@ def Linear_backward(dZ, cache):
 
 def linear_activation_backward(dA, cache, activation):
     if activation == 'softmax':
-        dZ = softmax_backward(cache['activation_cache'])
+        dZ = softmax_backward(dA, cache['activation_cache'])
         dA_prev, dW, db = Linear_backward(dZ, cache['linear_cache'])
     else:
         dZ = relu_backward(dA, cache['activation_cache'])
@@ -124,14 +119,15 @@ def relu_backward(dA, activation_cache):
     Z = activation_cache
     dZ = np.array(dA, copy=True)
     dZ[Z <= 0] = 0
-    dZ[Z > 0] = 1
+
     return dZ
 
-def softmax_backward(activation_cache):
-    # Reshape the 1-d softmax to 2-d so that np.dot will do the matrix multiplication
-    Z = activation_cache
-    soft_max = softmax(Z)[0]
-    return soft_max*(1 - soft_max)
+def softmax_backward(dA, activation_cache):
+    z = activation_cache
+    z -= np.max(z)
+    s = (np.exp(z).T / np.sum(np.exp(z), axis=1))
+    dZ = dA.T * s * (1 - s)
+    return dZ.T
 
 
 '''def sigmoid_backward(dA, activation_cache):
@@ -139,23 +135,42 @@ def softmax_backward(activation_cache):
     Z = activation_cache
     return dA * sigmoid(Z)[0] * (1 - sigmoid(Z)[0])'''
 
+def softmax_grad(s):
+    # Take the derivative of softmax element w.r.t the each logit which is usually Wi * X
+    # input s is softmax value of the original input x.
+    # s.shape = (1, n)
+    # i.e. s = np.array([0.3, 0.7]), x = np.array([0, 1])
+
+    # initialize the 2-D jacobian matrix.
+    jacobian_m = np.diag(s)
+
+    for i in range(len(jacobian_m)):
+        for j in range(len(jacobian_m)):
+            if i == j:
+                jacobian_m[i][j] = s[i] * (1-s[i])
+            else:
+                jacobian_m[i][j] = -s[i]*s[j]
+    return jacobian_m
 
 def L_model_backward(AL, Y, caches):
     grads = {}
     Y = Y.reshape(AL.shape)
+    dA = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
     cache = caches[-1]
     num_of_layers = len(caches) - 1
-    dA_prev, dW, db = linear_activation_backward(None, cache, 'softmax')
+    dA_prev, dW, db = linear_activation_backward(dA, cache, 'softmax')
     grads['dA' + str(num_of_layers)] = dA_prev
     grads['dW' + str(num_of_layers)] = dW
     grads['db' + str(num_of_layers)] = db
     caches = reversed(caches[:-1])
+
     for i, cache in enumerate(caches):
         i = num_of_layers - i - 1
-        dA_prev, dW, db = linear_activation_backward(dA_prev, cache, 'relu')
-        grads['dA' + str(i)] = dA_prev
-        grads['dW' + str(i)] = dW
-        grads['db' + str(i)] = db
+        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads["dA" + str(i + 1)], cache,
+                                                                    activation="relu")
+        grads['dA' + str(i)] = dA_prev_temp
+        grads['dW' + str(i)] = dW_temp
+        grads['db' + str(i)] = db_temp
     return grads
 
 
@@ -174,26 +189,26 @@ def update_parametrs(parameters, grad, learning_rate):
     return return_params
 
 
-def L_layer_model(X, Y, layers_dims, learning_rate, num_iterations, batch_size):
+def L_layer_model(X, Y, layers_dims, learning_rate, num_iterations, batch_size, x_test, y_test):
     costs = []
     parmeters = initialize_parameters(layers_dims)
     prev_cost = 100
     for iter in range(num_iterations):
         X_batches = [X[:, i:i + batch_size] for i in range(0, X.shape[1], batch_size)]
-        Y_batches = [Y[i:i + batch_size] for i in range(0, len(Y), batch_size)]
+        Y_batches = [Y[:, i:i + batch_size] for i in range(0, Y.shape[1], batch_size)]
 
         for x, y in zip(X_batches, Y_batches):
             AL, caches = L_model_forward(x, parmeters, False)
             cost = compute_cost(AL, y)
             grads = L_model_backward(AL, y, caches)
             parmeters = update_parametrs(parmeters, grads, learning_rate)
-
         if iter % 1 == 0 and iter > 0:
             costs.append(cost)
-            print(cost)
+            print('Iteration number {}: {}'.format(iter, cost))
             #if prev_cost - cost <= EPSILON:
             #    break
             prev_cost = costs[-1]
+            print(Predict(X, Y, parmeters))
 
     return parmeters, costs
 
@@ -201,12 +216,14 @@ def L_layer_model(X, Y, layers_dims, learning_rate, num_iterations, batch_size):
 def Predict(X, Y, parameters):
     AL, caches = L_model_forward(X, parameters, False)
     counter = 0
-    for al, y in AL, Y:
-        soft_al = softmax(al)
-        prediction = np.argmax(soft_al)
+    m = Y.shape[1]
+    for i in range(m):
+        al = AL[:, i]
+        prediction = np.argmax(al)
+        y = np.argmax(Y[:, i])
         if prediction == y:
             counter += 1
-    accuracy = counter / len(Y)
+    accuracy = counter / m
     return accuracy
 
 
@@ -234,16 +251,18 @@ def dropout_func(a, keep_prob):
 
 
 if __name__ == "__main__":
-    layer_dims = [784, 20, 7, 5, 10]
-    learning_rate = 0.002
+    layer_dims = [784, 20, 10]
+    learning_rate = 0.0009
     batch_size = 30
     iterations = 2000
     x_train, y_train, x_test, y_test = _get_data()
-    x_train = x_train/255
+    x_train = x_train
+    x_test = x_test
     y_train = pre_preprocess(y_train)
     y_test_hot = pre_preprocess(y_test)
     # x_train = x_train[:, :10000]
     # y_train = y_train[:10000, :]
-
-    params, costs = L_layer_model(x_train, y_train, layer_dims, learning_rate, iterations, batch_size)
-    accuracy = Predict(x_test, y_test_hot, params)
+    model_DL(x_train.T, y_train.T, y_train.T, x_test.T, y_test_hot.T, layer_dims, learning_rate,iterations, True)
+    #params, costs = L_layer_model(x_train, y_train.T, layer_dims, learning_rate, iterations, batch_size, x_test,y_test_hot.T)
+    #accuracy = Predict(x_test, y_test_hot.T, params)
+    #print(accuracy)

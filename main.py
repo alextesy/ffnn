@@ -10,7 +10,7 @@ EPSILON = 0.01
 def initialize_parameters(layer_dims):
     return_dict = {}
     for i, (dim, ndim) in enumerate(zip(layer_dims, layer_dims[1:])):
-        return_dict['W'+str(i)] = np.random.randn(ndim, dim)/200
+        return_dict['W'+str(i)] = np.random.randn(ndim, dim) / np.sqrt(dim)
         return_dict['b'+str(i)] = np.zeros((ndim, 1))
     return return_dict
 
@@ -35,8 +35,8 @@ def linear_forward(A, W, b):
 
 def softmax(z):
     """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(z - np.max(z))
-    return e_x / e_x.sum(axis=0), z  # only difference
+    A = np.exp(z) / sum(np.exp(z))
+    return A, z
 
 
 def relu(Z):
@@ -77,7 +77,7 @@ def L_model_forward(X, parameters, use_batchnorm, dropout=None):
 
 def compute_cost(AL, Y):
     m = Y.shape[1]
-    cost = (-1 / m) * np.sum(Y * np.log(AL))
+    cost = (-1 / m) * np.sum(Y * np.log(AL + 1e-13))
     cost = np.squeeze(cost)  # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
     return cost
     '''
@@ -124,41 +124,20 @@ def relu_backward(dA, activation_cache):
 
 def softmax_backward(dA, activation_cache):
     z = activation_cache
-    z -= np.max(z)
-    s = (np.exp(z).T / np.sum(np.exp(z), axis=1))
-    dZ = dA.T * s * (1 - s)
-    return dZ.T
+
+    dZ = dA - softmax(z)[0]
+    return dZ
 
 
-'''def sigmoid_backward(dA, activation_cache):
-    # np.diag(),10
-    Z = activation_cache
-    return dA * sigmoid(Z)[0] * (1 - sigmoid(Z)[0])'''
 
-def softmax_grad(s):
-    # Take the derivative of softmax element w.r.t the each logit which is usually Wi * X
-    # input s is softmax value of the original input x.
-    # s.shape = (1, n)
-    # i.e. s = np.array([0.3, 0.7]), x = np.array([0, 1])
-
-    # initialize the 2-D jacobian matrix.
-    jacobian_m = np.diag(s)
-
-    for i in range(len(jacobian_m)):
-        for j in range(len(jacobian_m)):
-            if i == j:
-                jacobian_m[i][j] = s[i] * (1-s[i])
-            else:
-                jacobian_m[i][j] = -s[i]*s[j]
-    return jacobian_m
 
 def L_model_backward(AL, Y, caches):
     grads = {}
     Y = Y.reshape(AL.shape)
-    dA = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+    dA = AL - Y
     cache = caches[-1]
     num_of_layers = len(caches) - 1
-    dA_prev, dW, db = linear_activation_backward(dA, cache, 'softmax')
+    dA_prev, dW, db = Linear_backward(dA, cache['linear_cache'])
     grads['dA' + str(num_of_layers)] = dA_prev
     grads['dW' + str(num_of_layers)] = dW
     grads['db' + str(num_of_layers)] = db
@@ -252,17 +231,17 @@ def dropout_func(a, keep_prob):
 
 if __name__ == "__main__":
     layer_dims = [784, 20, 10]
-    learning_rate = 0.0009
+    learning_rate = 0.009
     batch_size = 30
     iterations = 2000
     x_train, y_train, x_test, y_test = _get_data()
-    x_train = x_train
-    x_test = x_test
+    x_train = x_train/256
+    x_test = x_test/256
     y_train = pre_preprocess(y_train)
     y_test_hot = pre_preprocess(y_test)
     # x_train = x_train[:, :10000]
     # y_train = y_train[:10000, :]
-    model_DL(x_train.T, y_train.T, y_train.T, x_test.T, y_test_hot.T, layer_dims, learning_rate,iterations, True)
-    #params, costs = L_layer_model(x_train, y_train.T, layer_dims, learning_rate, iterations, batch_size, x_test,y_test_hot.T)
-    #accuracy = Predict(x_test, y_test_hot.T, params)
-    #print(accuracy)
+    #model_DL(x_train.T, y_train.T, y_train.T, x_test.T, y_test_hot.T, layer_dims, learning_rate,iterations, True)
+    params, costs = L_layer_model(x_train, y_train.T, layer_dims, learning_rate, iterations, batch_size, x_test,y_test_hot.T)
+    accuracy = Predict(x_test, y_test_hot.T, params)
+    print(accuracy)

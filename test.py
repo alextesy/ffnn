@@ -3,7 +3,7 @@ import numpy as np
 
 def softmax(z):
     cache = z
-    z -= np.max(z)
+    z /= np.max(z)
     sm = (np.exp(z).T / np.sum(np.exp(z), axis=1))
     return sm, cache
 
@@ -25,10 +25,9 @@ def softmax_backward(dA, cache):
     :return:
     """
     z = cache
-    z -= np.max(z)
-    s = (np.exp(z).T / np.sum(np.exp(z), axis=1))
-    dZ = dA * s * (1 - s)
-    return dZ
+    s = softmax(z)[0]
+    #dZ = dA * s * (1 - s)
+    return dA-s
 
 
 def relu_backward(dA, cache):
@@ -54,7 +53,7 @@ def initialize_parameters_deep(dims):
     L = len(dims)
 
     for l in range(1, L):
-        params['W' + str(l)] = np.random.randn(dims[l], dims[l - 1]) * 0.01
+        params['W' + str(l)] = np.random.randn(dims[l], dims[l - 1]) * 0.01# np.sqrt(1/dims[l - 1]*10)
         params['b' + str(l)] = np.zeros((dims[l], 1))
     return params
 
@@ -128,10 +127,15 @@ def compute_cost(A_last, Y):
     :param Y:
     :return:
     """
-
+    '''
     m = Y.shape[1]
-    cost = (-1 / m) * np.sum(Y * np.log(A_last))
+    cost = (-1 / m) * np.sum(Y * np.log(A_last + 1e-13))
     cost = np.squeeze(cost)  # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
+    '''
+    m = Y.shape[1]
+    cost = np.sum(Y * np.log(A_last))
+    cost /= -m
+
     return cost
 
 
@@ -186,7 +190,7 @@ def L_model_backward(A_last, Y, caches):
     m = A_last.shape[1]
     Y = Y.reshape(A_last.shape)  # after this line, Y is the same shape as A_last
 
-    dA_last = - (np.divide(Y, A_last) - np.divide(1 - Y, 1 - A_last))
+    dA_last = - (np.divide(Y, A_last + 1e-13) - np.divide(1 - Y, 1 - A_last + 1e-13))
     current_cache = caches[-1]
     grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dA_last,
                                                                                                   current_cache,
@@ -255,7 +259,7 @@ def model_DL( X, Y, Y_real, test_x, test_y, layers_dims, alpha, num_iterations, 
         else:
             params = update_params(params, grads, alpha)
 
-        if print_cost and i % 20 == 0:
+        if print_cost and i % 1 == 0:
             print("Cost after iteration %i: %f" % (i, cost))
             predictions = predict(params, X)
             y_pred = np.argmax(Y_real, axis=0)

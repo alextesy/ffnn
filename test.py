@@ -1,287 +1,290 @@
 import numpy as np
+import math
+from sklearn.model_selection import train_test_split
+from keras.datasets import mnist
 
+EPSILON = 0.0000001
 
-def softmax(z):
-    cache = z
-    z /= np.max(z)
-    sm = (np.exp(z).T / np.sum(np.exp(z), axis=1))
-    return sm, cache
-
-
-def relu(z):
-    """
-    :param z:
-    :return:
-    """
-    s = np.maximum(0, z)
-    cache = z
-    return s, cache
-
-
-def softmax_backward(dA, cache):
-    """
-    :param dA:
-    :param activation_cache:
-    :return:
-    """
-    z = cache
-    s = softmax(z)[0]
-    #dZ = dA * s * (1 - s)
-    return dA-s
-
-
-def relu_backward(dA, cache):
-    """
-    :param dA:
-    :param activation_cache:
-    :return:
-    """
-    Z = cache
-    dZ = np.array(dA, copy=True)  # just converting dz to a correct object.
-    dZ[Z <= 0] = 0
-    return dZ
-
-
-def initialize_parameters_deep(dims):
-    """
-    :param dims:
-    :return:
-    """
-
-    np.random.seed(3)
-    params = {}
-    L = len(dims)
-
-    for l in range(1, L):
-        params['W' + str(l)] = np.random.randn(dims[l], dims[l - 1]) * 0.01# np.sqrt(1/dims[l - 1]*10)
-        params['b' + str(l)] = np.zeros((dims[l], 1))
-    return params
+def initialize_parameters(layer_dims):
+    return_dict = {}
+    for i, (dim, ndim) in enumerate(zip(layer_dims, layer_dims[1:])):
+        i = i + 1
+        return_dict['W' + str(i)] = np.random.randn(ndim, dim) / np.sqrt(dim)
+        return_dict['b' + str(i)] = np.zeros((ndim, 1))
+    return return_dict
 
 
 def linear_forward(A, W, b):
-    """
-    :param A:
-    :param W:
-    :param b:
-    :return:
-    """
-
+    linear_cache = {
+        'A': A,
+        'W': W,
+        'b': b
+    }
+    # transposed_W = np.transpose(W)
     Z = np.dot(W, A) + b
-    cache = (A, W, b)
-
-    return Z, cache
+    return Z, linear_cache
 
 
-def linear_activation_forward(A_prev, W, b, activation):
-    """
-    :param A_prev:
-    :param W:
-    :param b:
-    :param activation:
-    :return:
-    """
-    if activation == "softmax":
-        Z, linear_cache = linear_forward(A_prev, W, b)
-        A, activation_cache = softmax(Z.T)
 
-    elif activation == "relu":
-        Z, linear_cache = linear_forward(A_prev.T, W, b)
-        A, activation_cache = relu(Z)
+def softmax(z):
+    e_x = np.exp(z - np.max(z))
+    return e_x / e_x.sum(axis=0), z  # only difference
 
-    cache = (linear_cache, activation_cache)
+
+def relu(Z):
+    return np.maximum(0, Z), Z
+
+
+def linear_activation_forward(A_prev, W, B, activation='relu'):
+    Z, linear_cache = linear_forward(A_prev, W, B)
+    activation_func = {
+        'softmax': softmax,
+        'relu': relu
+    }
+    A, activation_cache = activation_func[activation](Z)
+    cache = {'linear_cache': linear_cache,
+             'activation_cache': activation_cache}
 
     return A, cache
 
 
-def L_model_forward(X, params):
-    """
-    :param X:
-    :param params:
-    :return:
-    """
+def dropout_func(a, keep_prob):
+    d = np.random.rand(a.shape[0], a.shape[1])
+    d[d < keep_prob] = 0
+    d[d >= keep_prob] = 1
 
+    a = np.multiply(a, d)
+    return a
+
+
+def L_model_forward(X, parameters, use_batchnorm=False, dropout=None):
     caches = []
     A = X
-    L = len(params) // 2  # number of layers in the neural network
-
-    # Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
-    for l in range(1, L):
+    L = len(parameters) // 2
+    for i in range(1, L):
         A_prev = A
-        A, cache = linear_activation_forward(A_prev,
-                                             params["W" + str(l)],
-                                             params["b" + str(l)],
-                                             activation='relu')
+        W = parameters['W' + str(i)]
+        b = parameters['b' + str(i)]
+        if isinstance(A_prev, tuple):
+            print('a')
+        A, cache = linear_activation_forward(A_prev, W, b, activation='relu')
+        A = dropout_func(A, dropout) if dropout else A
+        A = apply_batchnorm(A) if use_batchnorm else A
+
         caches.append(cache)
-
-    A_last, cache = linear_activation_forward(A,
-                                              params["W" + str(L)],
-                                              params["b" + str(L)],
-                                              activation='softmax')
+    AL, cache = linear_activation_forward(A,
+                                          parameters['W' + str(L)],
+                                          parameters['b' + str(L)],
+                                          activation='softmax')
     caches.append(cache)
-    return A_last, caches
+
+    return AL, caches
 
 
-def compute_cost(A_last, Y):
-    """
-    :param A_last:
-    :param Y:
-    :return:
-    """
-    '''
+def compute_cost(AL, Y):
     m = Y.shape[1]
-    cost = (-1 / m) * np.sum(Y * np.log(A_last + 1e-13))
+    cost = (-1 / m) * np.sum(Y * np.log(AL + 1e-15))
     cost = np.squeeze(cost)  # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
-    '''
-    m = Y.shape[1]
-    cost = np.sum(Y * np.log(A_last))
-    cost /= -m
-
     return cost
 
 
-def linear_backward(dZ, cache):
-    """
-    :param dZ:
-    :param cache:
-    :return:
-    """
+def apply_batchnorm(A):
+    return A / np.linalg.norm(A)
 
-    A_prev, W, b = cache
+
+
+def Linear_backward(dZ, cache):
+    """
+    Implements the linear part of the backward propagation process for a single layer.
+    :param dZ: the gradient of the cost with respect to the linear output of the current layer (layer l)
+    :param cache: tuple of values (A_prev, W, b) coming from the forward propagation in the current layer
+    :return: a tuple(dA_prev, dW,db) -
+            dA_prev -- Gradient of the cost with respect to the activation (of the previous layer l-1), same shape as A_prev
+            dW -- Gradient of the cost with respect to W (current layer l), same shape as W
+            db -- Gradient of the cost with respect to b (current layer l), same shape as b
+    """
+    A_prev = cache['A']
+    W = cache['W']
+    b = cache['b']
     m = A_prev.shape[1]
 
-    dW = (1. / m) * np.dot(dZ, cache[0].T)
+    dW = (1. / m) * np.dot(dZ, A_prev.T)
     db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
-    dA_prev = np.dot(cache[1].T, dZ)
+    dA_prev = np.dot(W.T, dZ)
 
     return dA_prev, dW, db
 
 
-def linear_activation_backward(dA, cache, activation):
-    """
-    :param dA:
-    :param cache:
-    :param activation:
-    :return:
-    """
+def linear_activation_backward(dA, cache, activation='relu'):
+    if activation == 'softmax':
+        dZ = softmax_backward(dA, cache['activation_cache'])
+        dA_prev, dW, db = Linear_backward(dZ, cache['linear_cache'])
+    else:
+        dZ = relu_backward(dA, cache['activation_cache'])
+        dA_prev, dW, db = Linear_backward(dZ, cache['linear_cache'])
 
-    linear_cache, activation_cache = cache
-
-    if activation == "relu":
-        dZ = relu_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ, linear_cache)
-
-    elif activation == "softmax":
-        dZ = softmax_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ, linear_cache)
 
     return dA_prev, dW, db
 
 
-def L_model_backward(A_last, Y, caches):
-    """
-    :param A_last:
-    :param Y:
-    :param caches:
-    :return:
-    """
+def softmax_backward(dA, activation_cache):
+    z = activation_cache
+
+    dZ = dA - softmax(z)[0]
+    return dZ
+
+
+def relu_backward(dA, activation_cache):
+    Z = activation_cache
+    dZ = np.array(dA, copy=True)
+    dZ[Z <= 0] = 0
+    return dZ
+
+
+def L_model_backward(AL, Y, caches):
 
     grads = {}
-    L = len(caches)  # the number of layers
-    m = A_last.shape[1]
-    Y = Y.reshape(A_last.shape)  # after this line, Y is the same shape as A_last
+    L = len(caches)
+    Y = Y.reshape(AL.shape)
+    dAL = AL - Y
+    cache = caches[-1]
+    linear_cache = cache['linear_cache']
+    dA_prev, dW, db = Linear_backward(dAL, linear_cache)
+    grads['dA' + str(L)] = dA_prev
+    grads['dW' + str(L)] = dW
+    grads['db' + str(L)] = db
 
-    dA_last = - (np.divide(Y, A_last + 1e-13) - np.divide(1 - Y, 1 - A_last + 1e-13))
-    current_cache = caches[-1]
-    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dA_last,
-                                                                                                  current_cache,
-                                                                                                  activation="softmax")
-
-    for l in reversed(range(L - 1)):
-        current_cache = caches[l]
-
-        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads["dA" + str(l + 2)], current_cache,
-                                                                    activation="relu")
-        grads["dA" + str(l + 1)] = dA_prev_temp
-        grads["dW" + str(l + 1)] = dW_temp
-        grads["db" + str(l + 1)] = db_temp
-
+    for i in reversed(range(L - 1)):
+        cache = caches[i]
+        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads["dA" + str(i + 2)], cache, activation="relu")
+        grads['dA' + str(i+1)] = dA_prev_temp
+        grads['dW' + str(i+1)] = dW_temp
+        grads['db' + str(i+1)] = db_temp
     return grads
 
 
-def update_params(params, grads, alpha):
-    """
-    :param params:
-    :param grads:
-    :param alpha:
-    :return:
-    """
-
-    L = len(params) // 2  # number of layers in the neural network
-
-    for l in range(L):
-        params["W" + str(l + 1)] = params["W" + str(l + 1)] - alpha * grads["dW" + str(l + 1)]
-        params["b" + str(l + 1)] = params["b" + str(l + 1)] - alpha * grads["db" + str(l + 1)]
-
-    return params
+def Update_parameters(parameters, grads, learning_rate=0.001):
+    return_params = {}
+    L = round(len(parameters) / 2)
+    for i in range(1, L + 1):
+        currentDW = grads['dW' + str(i)]
+        currentDb = grads['db' + str(i)]
+        W = parameters['W' + str(i)]
+        b = parameters['b' + str(i)]
+        W = W - learning_rate * currentDW
+        b = b - learning_rate * currentDb
+        return_params['W' + str(i)] = W
+        return_params['b' + str(i)] = b
+    return return_params
 
 
-def model_DL( X, Y, Y_real, test_x, test_y, layers_dims, alpha, num_iterations, print_cost):  # lr was 0.009
-    """
-    Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
-    Arguments:
-    X -- data, numpy array of shape (number of examples, num_px * num_px * 3)
-    Y -- true "label" vector (containing 0 if cat, 1 if non-cat), of shape (1, number of examples)
-    layers_dims -- list containing the input size and each layer size, of length (number of layers + 1).
-    alpha -- learning rate of the gradient descent update rule
-    num_iterations -- number of iterations of the optimization loop
-    print_cost -- if True, it prints the cost every 100 steps
-    Returns:
-    params -- params learnt by the model. They can then be used to predict.
-    """
+def training_validation_split(X, Y):
+    x_train_data = X.reshape((X.shape[0], 784))
+    x_train, x_val, y_train, y_val = train_test_split(x_train_data, Y.T, test_size=0.25)
+    return x_train.T, y_train.T, x_val.T, y_val.T
 
-    np.random.seed(1)
-    costs = []  # keep track of cost
+def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, batch_size=32,
+                  use_batchnorm=False):
+    training_steps = 0
+    prev_cost = 100
+    costs = []
+    stable_cost = 0
+    parameters = initialize_parameters(layer_dims)
+    for i in range(num_iterations):
+        x_train, y_train, x_val, y_val = training_validation_split(X, Y)
+        print("num of iteration: " + str(i))
+        minibatches = batch_split(x_train, y_train, batch_size)
+        for x, y in minibatches:
+            training_steps += 1
+            AL, caches = L_model_forward(x, parameters, use_batchnorm)
+            grads = L_model_backward(AL, y, caches)
+            parameters = Update_parameters(parameters, grads, learning_rate)
+            cost = compute_cost(AL, y)
+            if abs(cost-prev_cost) < 0.0001:
+                stable_cost += 1
+            else:
+                prev_cost = cost
+                stable_cost = 0
 
-    params = initialize_parameters_deep(layers_dims)
-
-    for i in range(0, num_iterations):
-
-        A_last, caches = L_model_forward(X, params)
-        cost = compute_cost(A_last, Y)
-        grads = L_model_backward(A_last, Y, caches)
-
-        if (i > 800 and i<1700):
-            alpha1 = 0.80 * alpha
-            params = update_params(params, grads, alpha1)
-        elif(i>=1700):
-            alpha1 = 0.50 * alpha
-            params = update_params(params, grads, alpha1)
-        else:
-            params = update_params(params, grads, alpha)
-
-        if print_cost and i % 1 == 0:
-            print("Cost after iteration %i: %f" % (i, cost))
-            predictions = predict(params, X)
-            y_pred = np.argmax(Y_real, axis=0)
-            print("Train accuracy: {} %".format(sum(predictions == y_pred) / (float(len(y_pred))) * 100))
-            test_y_predict = np.argmax(test_y, axis=0)
-            predictions = predict(params, test_x)
-            print("Test accuracy: {} %".format(sum(predictions == test_y_predict) / (float(len(test_y_predict))) * 100))
-        if print_cost and i % 100 == 0:
-            costs.append(cost)
+            if stable_cost == 1000:
+                break
 
 
+            if training_steps % 100 == 0:
+                cost = compute_cost(AL, y)
+                costs.append(cost)
+                print('Iter: {}, Training Steps {}: {}'.format(i, training_steps, cost))
+                print('Training accuracy: {}'.format(Predict(x_val, y_val, parameters)*100))
 
-    #plt.plot(np.squeeze(costs))
-    #plt.ylabel('cost')
-    #plt.xlabel('iterations (per tens)')
-    #plt.title("Learning rate =" + str(alpha))
-    #plt.show()
+    accuracy = Predict(x_val, y_val, parameters) * 100
+    return parameters, costs
 
-    return params
+def Predict(X, Y, parameters, use_batchnorm=False):
+    AL, caches = L_model_forward(X, parameters, False)
+    m = Y.shape[1]
+    Y = np.argmax(Y, axis=0)
+    predictions = np.argmax(AL, axis=0)
+    counter = (Y == predictions).sum()
+    accuracy = counter / m
+    return accuracy
 
 
-def predict(parameters, X):
-    A_last, cache = L_model_forward(X, parameters)
-    predictions = np.argmax(A_last, axis=0)
-    return predictions
+def batch_split(X, Y, mini_batch_size=64):
+    # Randomize data point
+    randomize = np.arange(X.shape[1])
+    np.random.shuffle(randomize)
+    shuffled_X = X[:, randomize]
+    shuffled_Y = Y[:, randomize]
+    mini_batches =[]
+    m = X.shape[1]
+    full_size_batch = math.floor(m / mini_batch_size)
+    for i in range(0, X.shape[1], mini_batch_size):
+        # Get pair of (X, y) of the current minibatch/chunk
+        X_train_mini = shuffled_X[:, i:i + mini_batch_size]
+        y_train_mini = shuffled_Y[:, i:i + mini_batch_size]
+        mini_batches.append((X_train_mini, y_train_mini))
+    # If minibatch size doesnt divides samples size correctly
+    if m % mini_batch_size != 0:
+        X_train_mini = shuffled_X[:, full_size_batch * mini_batch_size:]
+        y_train_mini = shuffled_Y[:, full_size_batch * mini_batch_size:]
+        mini_batches.append((X_train_mini, y_train_mini))
+
+    return mini_batches
+
+
+def _get_data():
+    #TODO check
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+    y_new = np.zeros((10, y_train.shape[0]))
+    cnt = 0
+    for label in y_train:
+        y_new[label][cnt] = 1
+        cnt += 1
+
+    y_train = y_new
+
+    y_new = np.zeros((10, y_test.shape[0]))
+    cnt = 0
+    for label in y_test:
+        y_new[label][cnt] = 1
+        cnt += 1
+
+    y_test = y_new
+    # normalize
+    x_train = x_train.astype(float) / 255.
+    x_test = x_test.astype(float) / 255.
+
+    return (x_train, y_train), (x_test.T, y_test.T)
+
+
+if __name__ == "__main__":
+
+    layer_dims = [784, 20, 7, 5, 10]
+    learning_rate = 0.009
+    batch_size = 32
+    iterations = 5000
+    (x_train, y_train), (x_test, y_test) = _get_data()
+    params, costs = L_layer_model(x_train, y_train, layer_dims, learning_rate, iterations, batch_size, use_batchnorm=False)
+    print('Test accuracy: {}'.format(Predict(x_test, y_test)))
+

@@ -39,7 +39,7 @@ def train(x, y, layers_dims, learning_rate, iterations, batch_size, x_test, y_te
     start = time.time()
     params, costs, training_steps, validation_accuracy, iter = L_layer_model(x, y, layers_dims, learning_rate, iterations, batch_size, use_batchnorm)
     end = time.time()
-    total_time = (end - start)/60 # Minutes
+    total_time = (end - start)/60  # Minutes
     x_test = x_test.reshape((x_test.shape[0], 784))
     x = x.reshape((x.shape[0], 784))
 

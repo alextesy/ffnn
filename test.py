@@ -56,7 +56,7 @@ def dropout_func(a, keep_prob):
     return a
 
 
-def L_model_forward(X, parameters, use_batchnorm=False, dropout=None):
+def L_model_forward(X, parameters, use_batchnorm=False, dropout=False):
     caches = []
     A = X
     L = len(parameters) // 2
@@ -71,10 +71,9 @@ def L_model_forward(X, parameters, use_batchnorm=False, dropout=None):
         A = apply_batchnorm(A) if use_batchnorm else A
 
         caches.append(cache)
-    AL, cache = linear_activation_forward(A,
-                                          parameters['W' + str(L)],
-                                          parameters['b' + str(L)],
-                                          activation='softmax')
+    W = parameters['W' + str(L)]
+    b = parameters['b' + str(L)]
+    AL, cache = linear_activation_forward(A, W, b, activation='softmax')
     caches.append(cache)
 
     return AL, caches
@@ -179,7 +178,7 @@ def training_validation_split(X, Y):
     x_train, x_val, y_train, y_val = train_test_split(x_train_data, Y.T, test_size=0.25)
     return x_train.T, y_train.T, x_val.T, y_val.T
 
-def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, batch_size=32,
+def L_layer_model(X, Y, layer_dims, learning_rate, num_iterations, batch_size,
                   use_batchnorm=False):
     training_steps = 0
     prev_accuracy = 0
@@ -213,8 +212,8 @@ def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, bat
                     stop = True
                 prev_accuracy = accuracy
 
-
     return parameters, costs, training_steps, accuracy, i
+
 
 def Predict(X, Y, parameters, use_batchnorm=False):
     AL, caches = L_model_forward(X, parameters, use_batchnorm)

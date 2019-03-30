@@ -59,8 +59,8 @@ def train(x, y, layers_dims, learning_rate, iterations, batch_size, x_test, y_te
 layer_dims = [784, 20, 10]
 learning_rate = 0.009
 batch_size = 30
-iterations = 2000
+iterations = 5000
 layers_dims = [784, 20, 7, 5, 10]
-train(x_train, y_train, layers_dims, learning_rate, iterations, batch_size,x_test, y_test, use_batchnorm=False)
+#train(x_train, y_train, layers_dims, learning_rate, iterations, batch_size,x_test, y_test, use_batchnorm=False)
 print('#######################################')
 train(x_train, y_train, layers_dims, learning_rate, iterations, batch_size,x_test, y_test, use_batchnorm=True)

@@ -2,7 +2,7 @@ import numpy as np
 import math
 from sklearn.model_selection import train_test_split
 
-EPSILON = 0.01
+EPSILON = 0.03
 
 def initialize_parameters(layer_dims):
     return_dict = {}
@@ -205,12 +205,12 @@ def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, bat
 
                 print('Iter: {}, Training Steps {}: {}'.format(i, training_steps, cost))
                 print('Validation accuracy: {}'.format(accuracy))
-                if accuracy - prev_accuracy <= EPSILON:
+                if abs(accuracy - prev_accuracy) <= EPSILON:
                     accuracy_change += 1
                 else:
                     accuracy_change = 0
-                if accuracy_change == 5:
-                    stop=True
+                if accuracy_change == 3:
+                    stop = True
                 prev_accuracy = accuracy
 
 

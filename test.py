@@ -1,9 +1,8 @@
 import numpy as np
 import math
 from sklearn.model_selection import train_test_split
-from keras.datasets import mnist
 
-EPSILON = 0.0000001
+EPSILON = 0.01
 
 def initialize_parameters(layer_dims):
     return_dict = {}
@@ -27,8 +26,8 @@ def linear_forward(A, W, b):
 
 
 def softmax(z):
-    e_x = np.exp(z - np.max(z))
-    return e_x / e_x.sum(axis=0), z  # only difference
+    A = np.exp(z) / sum(np.exp(z))
+    return A, z  # only difference
 
 
 def relu(Z):
@@ -89,20 +88,17 @@ def compute_cost(AL, Y):
 
 
 def apply_batchnorm(A):
-    return A / np.linalg.norm(A)
+    mean = np.mean(A)
+    varience = np.var(A)
+
+    A_norm = (A - mean) / np.sqrt(varience + 1e-7)
+
+    return A_norm
 
 
 
 def Linear_backward(dZ, cache):
-    """
-    Implements the linear part of the backward propagation process for a single layer.
-    :param dZ: the gradient of the cost with respect to the linear output of the current layer (layer l)
-    :param cache: tuple of values (A_prev, W, b) coming from the forward propagation in the current layer
-    :return: a tuple(dA_prev, dW,db) -
-            dA_prev -- Gradient of the cost with respect to the activation (of the previous layer l-1), same shape as A_prev
-            dW -- Gradient of the cost with respect to W (current layer l), same shape as W
-            db -- Gradient of the cost with respect to b (current layer l), same shape as b
-    """
+
     A_prev = cache['A']
     W = cache['W']
     b = cache['b']
@@ -186,11 +182,14 @@ def training_validation_split(X, Y):
 def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, batch_size=32,
                   use_batchnorm=False):
     training_steps = 0
-    prev_cost = 100
+    prev_accuracy = 0
     costs = []
-    stable_cost = 0
+    stop = False
+    accuracy_change = 0
     parameters = initialize_parameters(layer_dims)
     for i in range(num_iterations):
+        if stop:
+            break
         x_train, y_train, x_val, y_val = training_validation_split(X, Y)
         print("num of iteration: " + str(i))
         minibatches = batch_split(x_train, y_train, batch_size)
@@ -199,28 +198,26 @@ def L_layer_model(X, Y, layer_dims, learning_rate=0.009, num_iterations=300, bat
             AL, caches = L_model_forward(x, parameters, use_batchnorm)
             grads = L_model_backward(AL, y, caches)
             parameters = Update_parameters(parameters, grads, learning_rate)
-            cost = compute_cost(AL, y)
-            if abs(cost-prev_cost) < 0.0001:
-                stable_cost += 1
-            else:
-                prev_cost = cost
-                stable_cost = 0
-
-            if stable_cost == 1000:
-                break
-
-
             if training_steps % 100 == 0:
                 cost = compute_cost(AL, y)
                 costs.append(cost)
-                print('Iter: {}, Training Steps {}: {}'.format(i, training_steps, cost))
-                print('Training accuracy: {}'.format(Predict(x_val, y_val, parameters)*100))
+                accuracy = Predict(x_val, y_val, parameters, use_batchnorm=use_batchnorm) * 100
 
-    accuracy = Predict(x_val, y_val, parameters) * 100
-    return parameters, costs
+                print('Iter: {}, Training Steps {}: {}'.format(i, training_steps, cost))
+                print('Validation accuracy: {}'.format(accuracy))
+                if accuracy - prev_accuracy <= EPSILON:
+                    accuracy_change += 1
+                else:
+                    accuracy_change = 0
+                if accuracy_change == 5:
+                    stop=True
+                prev_accuracy = accuracy
+
+
+    return parameters, costs, training_steps, accuracy, i
 
 def Predict(X, Y, parameters, use_batchnorm=False):
-    AL, caches = L_model_forward(X, parameters, False)
+    AL, caches = L_model_forward(X, parameters, use_batchnorm)
     m = Y.shape[1]
     Y = np.argmax(Y, axis=0)
     predictions = np.argmax(AL, axis=0)
@@ -250,41 +247,3 @@ def batch_split(X, Y, mini_batch_size=64):
         mini_batches.append((X_train_mini, y_train_mini))
 
     return mini_batches
-
-
-def _get_data():
-    #TODO check
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-
-    y_new = np.zeros((10, y_train.shape[0]))
-    cnt = 0
-    for label in y_train:
-        y_new[label][cnt] = 1
-        cnt += 1
-
-    y_train = y_new
-
-    y_new = np.zeros((10, y_test.shape[0]))
-    cnt = 0
-    for label in y_test:
-        y_new[label][cnt] = 1
-        cnt += 1
-
-    y_test = y_new
-    # normalize
-    x_train = x_train.astype(float) / 255.
-    x_test = x_test.astype(float) / 255.
-
-    return (x_train, y_train), (x_test.T, y_test.T)
-
-
-if __name__ == "__main__":
-
-    layer_dims = [784, 20, 7, 5, 10]
-    learning_rate = 0.009
-    batch_size = 32
-    iterations = 5000
-    (x_train, y_train), (x_test, y_test) = _get_data()
-    params, costs = L_layer_model(x_train, y_train, layer_dims, learning_rate, iterations, batch_size, use_batchnorm=False)
-    print('Test accuracy: {}'.format(Predict(x_test, y_test)))
-
